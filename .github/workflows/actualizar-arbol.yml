@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: '0 3 * * 1'  # Lunes 00:00 ART (3:00 UTC)
 
+permissions:
+  contents: write
+
 jobs:
   scrape-and-encrypt:
     runs-on: ubuntu-latest
