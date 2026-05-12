@@ -1,0 +1,159 @@
+name: Actualizar árbol de categorías
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'  # Lunes 00:00 ART (3:00 UTC)
+
+jobs:
+  scrape-and-encrypt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Extraer árbol nuevo
+        env:
+          SITIO_URL: ${{ secrets.SITIO_URL }}
+        run: python3 extraer-arbol.py > nuevo.json 2>> stderr.log
+
+      - name: Desencriptar versión anterior (si existe)
+        run: |
+          if [ -f arbol-categorias.json.enc ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
+              -in arbol-categorias.json.enc \
+              -out anterior.json \
+              -pass pass:"${{ secrets.CESJ_KEY }}" \
+              2>> stderr.log
+          fi
+
+      - name: Generar reporte y comparar
+        id: reporte
+        run: |
+          python3 << 'PYEOF'
+          import json, os
+
+          # Cargar nuevo
+          with open("nuevo.json") as f:
+            nuevo = json.load(f)
+
+          # Stats del nuevo
+          n_cats = len(nuevo["categorias"])
+          n_subs = sum(len(c["subcategorias"]) for c in nuevo["categorias"])
+          n_total = sum(
+            s.get("anuncios", 0)
+            for c in nuevo["categorias"] for s in c["subcategorias"]
+          )
+
+          reporte = []
+          reporte.append("📊 CeSJ — Reporte semanal")
+          reporte.append("─" * 40)
+          reporte.append(f"Fecha: {nuevo['generado']}")
+          reporte.append("")
+          reporte.append(f"📊 {n_cats} categorías | {n_subs} subcategorías | {n_total} anuncios totales")
+
+          # Comparar con anterior si existe
+          cambio_data = False
+          if os.path.exists("anterior.json"):
+            with open("anterior.json") as f:
+              anterior = json.load(f)
+
+            a_cats = len(anterior["categorias"])
+            a_subs = sum(len(c["subcategorias"]) for c in anterior["categorias"])
+            a_total = sum(
+              s.get("anuncios", 0)
+              for c in anterior["categorias"] for s in c["subcategorias"]
+            )
+
+            diff_anuncios = n_total - a_total
+            diff_cats = n_cats - a_cats
+            diff_subs = n_subs - a_subs
+
+            # Detectar subcats nuevas
+            anteriores = {(c["nombre"], s["cat"]): s
+                          for c in anterior["categorias"] for s in c["subcategorias"]}
+            nuevas = []
+            for c in nuevo["categorias"]:
+              for s in c["subcategorias"]:
+                if (c["nombre"], s["cat"]) not in anteriores:
+                  nuevas.append((c["nombre"], s["nombre"], s["cat"], s.get("anuncios", 0)))
+
+            eliminadas = []
+            for c in anterior["categorias"]:
+              for s in c["subcategorias"]:
+                if (c["nombre"], s["cat"]) not in {(c2["nombre"], s2["cat"]) for c2 in nuevo["categorias"] for s2 in c2["subcategorias"]}:
+                  eliminadas.append((c["nombre"], s["nombre"], s["cat"]))
+
+            hubo_cambio = diff_anuncios != 0 or diff_cats != 0 or diff_subs != 0 or nuevas or eliminadas
+
+            reporte.append("")
+            if hubo_cambio:
+              reporte.append("Estado: 🔄 Actualizado")
+
+              if diff_cats > 0:
+                reporte.append(f"🆕 +{diff_cats} categorías nuevas")
+              elif diff_cats < 0:
+                reporte.append(f"❌ {abs(diff_cats)} categorías eliminadas")
+
+              if diff_subs > 0:
+                reporte.append(f"🆕 +{diff_subs} subcategorías nuevas")
+              elif diff_subs < 0:
+                reporte.append(f"❌ {abs(diff_subs)} subcategorías eliminadas")
+
+              if diff_anuncios > 0:
+                reporte.append(f"📈 +{diff_anuncios} anuncios totales")
+              elif diff_anuncios < 0:
+                reporte.append(f"📉 {diff_anuncios} anuncios totales")
+
+              for cat, sub, sid, cnt in nuevas[:5]:
+                reporte.append(f"  🆕 {cat} › {sub} ({sid}) — {cnt} anuncios")
+              if len(nuevas) > 5:
+                reporte.append(f"  ... y {len(nuevas)-5} más")
+
+              for cat, sub, sid in eliminadas[:5]:
+                reporte.append(f"  ❌ {cat} › {sub} ({sid})")
+
+              cambio_data = True
+            else:
+              reporte.append("Estado: ✅ Sin cambios")
+          else:
+            reporte.append("")
+            reporte.append("Estado: 🆕 Primera vez")
+
+          reporte.append("")
+          reporte.append("— reporte generado automáticamente")
+
+          # Guardar reporte
+          with open("reporte.txt", "w") as f:
+            f.write("\n".join(reporte) + "\n")
+
+          print("\n".join(reporte))
+
+          # Flag para el paso siguiente
+          if cambio_data:
+            with open(os.environ.get("GITHUB_ENV", "/dev/null"), "a") as f:
+              f.write("HUBO_CAMBIOS=true\n")
+          else:
+            # Primer commit también es cambio
+            if not os.path.exists("anterior.json"):
+              with open(os.environ.get("GITHUB_ENV", "/dev/null"), "a") as f:
+                f.write("HUBO_CAMBIOS=true\n")
+
+          PYEOF
+
+      - name: Encriptar
+        run: |
+          openssl enc -aes-256-cbc -pbkdf2 -iter 100000 \
+            -in nuevo.json \
+            -out arbol-categorias.json.enc \
+            -pass pass:"${{ secrets.CESJ_KEY }}"
+          rm nuevo.json anterior.json 2>/dev/null || true
+
+      - name: Commit y push
+        run: |
+          git config user.name "CeSJ Bot"
+          git config user.email "cesj-bot@users.noreply.github.com"
+          git add arbol-categorias.json.enc reporte.txt
+          git diff --quiet && git diff --staged --quiet \
+            && echo "Sin cambios — no hay commit" \
+            || (git commit -m "$(head -1 reporte.txt | tr -d '\n')" && git push)
