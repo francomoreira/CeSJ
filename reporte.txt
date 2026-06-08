@@ -1,10 +1,17 @@
 📊 CeSJ — Reporte semanal
 ────────────────────────────────────────
-Fecha: 2026-06-01 08:23:31
+Fecha: 2026-06-08 07:22:13
 
-📊 26 categorías | 329 subcategorías | 55615 anuncios totales
+📊 0 categorías | 0 subcategorías | 0 anuncios totales
 
 Estado: 🔄 Actualizado
-📉 -65 anuncios totales
+❌ 26 categorías eliminadas
+❌ 329 subcategorías eliminadas
+📉 -55615 anuncios totales
+  ❌ Vehículos › Autos (200)
+  ❌ Vehículos › Camiones (208)
+  ❌ Vehículos › Camionetas, Utilitarios, SUV (225)
+  ❌ Vehículos › Motos, Cuatriciclos (226)
+  ❌ Vehículos › Náutica (227)
 
 — reporte generado automáticamente
