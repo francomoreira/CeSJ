@@ -1,10 +1,10 @@
 📊 CeSJ — Reporte semanal
 ────────────────────────────────────────
-Fecha: 2026-08-24 03:43:05
+Fecha: 2026-08-31 09:00:52
 
-📊 26 categorías | 329 subcategorías | 54661 anuncios totales
+📊 26 categorías | 329 subcategorías | 54665 anuncios totales
 
 Estado: 🔄 Actualizado
-📉 -33 anuncios totales
+📈 +4 anuncios totales
 
 — reporte generado automáticamente
