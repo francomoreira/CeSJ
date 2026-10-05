@@ -1,12 +1,10 @@
 📊 CeSJ — Reporte semanal
 ────────────────────────────────────────
-Fecha: 2026-09-28 09:04:04
+Fecha: 2026-10-05 09:45:39
 
-📊 26 categorías | 330 subcategorías | 54862 anuncios totales
+📊 26 categorías | 330 subcategorías | 54792 anuncios totales
 
 Estado: 🔄 Actualizado
-🆕 +1 subcategorías nuevas
-📉 -2 anuncios totales
-  🆕 Fiestas y Eventos › Día de la Mujer (43008) — 1 anuncios
+📉 -70 anuncios totales
 
 — reporte generado automáticamente
